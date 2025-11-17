@@ -1,0 +1,47 @@
+// Store Service Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Store Model - Core entity for multi-tenant store management
+model Store {
+  id            String      @id @default(cuid())
+  ownerId       String      // Reference to User in Auth Service
+  name          String
+  slug          String      @unique
+  domain        String?     @unique
+  customDomain  String?     @unique
+  email         String
+  phone         String?
+
+  // Settings
+  currency      String      @default("USD")
+  locale        String      @default("en-US")
+  timezone      String      @default("UTC")
+
+  // Configuration (JSON for flexibility)
+  settings      Json        @default("{}")
+  theme         Json        @default("{}")
+
+  status        StoreStatus @default(ACTIVE)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([ownerId])
+  @@index([slug])
+  @@index([status])
+}
+
+enum StoreStatus {
+  ACTIVE
+  PAUSED
+  SUSPENDED
+  CLOSED
+}

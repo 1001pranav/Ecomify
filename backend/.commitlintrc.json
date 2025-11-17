@@ -1,0 +1,45 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "docs",
+        "style",
+        "refactor",
+        "perf",
+        "test",
+        "build",
+        "ci",
+        "chore",
+        "revert"
+      ]
+    ],
+    "scope-enum": [
+      2,
+      "always",
+      [
+        "api-gateway",
+        "auth",
+        "store",
+        "product",
+        "order",
+        "payment",
+        "inventory",
+        "customer",
+        "analytics",
+        "notification",
+        "email",
+        "plugin",
+        "shared",
+        "database",
+        "queue",
+        "config",
+        "ci"
+      ]
+    ]
+  }
+}

@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "amqplib": "^0.10.3",
-    "@ecomify/types": "workspace:*"
+    "@ecomify/types": "*"
   },
   "devDependencies": {
     "@types/amqplib": "^0.10.4",

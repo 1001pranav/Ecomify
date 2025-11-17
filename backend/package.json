@@ -20,7 +20,7 @@
     "prisma:generate": "turbo run prisma:generate",
     "prisma:migrate": "turbo run prisma:migrate",
     "prisma:studio": "cd packages/database && prisma studio",
-    "prepare": "husky"
+    "prepare": "cd .. && husky || true"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.1.0",

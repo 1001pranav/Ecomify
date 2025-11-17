@@ -96,7 +96,7 @@ jobs:
         run: npm ci
 
       - name: Build ${{ matrix.service }}
-        run: npm run build --workspace=@ecomify/${{ matrix.service }}
+        run: npm run build --workspace=services/${{ matrix.service }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3

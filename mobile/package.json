@@ -1,0 +1,43 @@
+{
+  "name": "@ecomify/mobile",
+  "version": "1.0.0",
+  "description": "Ecomify Mobile Applications",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "merchant:start": "cd apps/merchant && npm start",
+    "merchant:android": "cd apps/merchant && npm run android",
+    "merchant:ios": "cd apps/merchant && npm run ios",
+    "customer:start": "cd apps/customer && npm start",
+    "customer:android": "cd apps/customer && npm run android",
+    "customer:ios": "cd apps/customer && npm run ios",
+    "test": "jest",
+    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\"",
+    "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md}\"",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.5",
+    "@babel/preset-env": "^7.23.5",
+    "@babel/preset-typescript": "^7.23.3",
+    "@types/jest": "^29.5.11",
+    "@types/react": "^18.2.45",
+    "@types/react-test-renderer": "^18.0.7",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.0",
+    "react-test-renderer": "^18.2.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

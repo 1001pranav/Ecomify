@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'path';
 import { StoresProxyModule } from './modules/stores/stores-proxy.module';
 import { ProductsProxyModule } from './modules/products/products-proxy.module';
+import { OrdersProxyModule } from './modules/orders/orders-proxy.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ProductsProxyModule } from './modules/products/products-proxy.module';
     // Service Proxies
     StoresProxyModule,
     ProductsProxyModule,
+    OrdersProxyModule,
   ],
   controllers: [],
   providers: [],

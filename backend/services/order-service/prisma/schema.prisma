@@ -1,0 +1,177 @@
+// Order Management Service - Prisma Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Order Model
+model Order {
+  id                String            @id @default(cuid())
+  orderNumber       String            @unique
+  storeId           String
+  customerId        String?
+
+  // Financial
+  subtotalPrice     Decimal           @db.Decimal(10, 2)
+  totalTax          Decimal           @db.Decimal(10, 2)
+  totalShipping     Decimal           @db.Decimal(10, 2)
+  totalDiscount     Decimal           @db.Decimal(10, 2) @default(0)
+  totalPrice        Decimal           @db.Decimal(10, 2)
+  currency          String            @default("USD")
+
+  // Status
+  financialStatus   FinancialStatus   @default(PENDING)
+  fulfillmentStatus FulfillmentStatus @default(UNFULFILLED)
+
+  // Customer Info
+  email             String
+  phone             String?
+
+  // Addresses (JSON for flexibility)
+  shippingAddress   Json
+  billingAddress    Json
+
+  note              String?
+  tags              String[]          @default([])
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  lineItems         OrderLineItem[]
+  fulfillments      Fulfillment[]
+  statusHistory     OrderStatusHistory[]
+  refunds           Refund[]
+
+  @@index([storeId])
+  @@index([customerId])
+  @@index([orderNumber])
+  @@index([email])
+  @@index([financialStatus])
+  @@index([fulfillmentStatus])
+  @@index([createdAt])
+}
+
+// Order Line Item
+model OrderLineItem {
+  id              String  @id @default(cuid())
+  orderId         String
+  variantId       String
+
+  title           String
+  variantTitle    String?
+  sku             String?
+  quantity        Int
+  price           Decimal @db.Decimal(10, 2)
+  totalPrice      Decimal @db.Decimal(10, 2)
+
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+// Fulfillment
+model Fulfillment {
+  id             String          @id @default(cuid())
+  orderId        String
+  trackingNumber String?
+  trackingUrl    String?
+  carrier        String?
+  status         FulfillmentStatus @default(UNFULFILLED)
+
+  // Fulfilled items (JSON: Array of {lineItemId, quantity})
+  lineItems      Json
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+}
+
+// Order Status History (for audit trail)
+model OrderStatusHistory {
+  id                String   @id @default(cuid())
+  orderId           String
+
+  previousFinancialStatus   FinancialStatus?
+  newFinancialStatus        FinancialStatus?
+
+  previousFulfillmentStatus FulfillmentStatus?
+  newFulfillmentStatus      FulfillmentStatus?
+
+  comment           String?
+  changedBy         String?  // userId
+
+  createdAt         DateTime @default(now())
+
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+// Refund
+model Refund {
+  id          String   @id @default(cuid())
+  orderId     String
+
+  amount      Decimal  @db.Decimal(10, 2)
+  reason      String?
+  restockItems Boolean @default(false)
+
+  status      String   @default("pending") // pending, processed, failed
+
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// Saga State (for distributed transactions)
+model SagaExecution {
+  id              String   @id @default(cuid())
+  orderId         String?
+  sagaType        String   // 'order_creation', 'order_cancellation'
+
+  currentStep     String
+  status          String   // 'in_progress', 'completed', 'failed', 'compensating'
+
+  steps           Json     // Array of completed steps
+  compensations   Json     // Array of compensations to execute
+
+  context         Json     // Saga context data
+  error           String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  @@index([orderId])
+  @@index([status])
+  @@index([sagaType])
+}
+
+// Enums
+enum FinancialStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  VOIDED
+}
+
+enum FulfillmentStatus {
+  UNFULFILLED
+  PARTIALLY_FULFILLED
+  FULFILLED
+}

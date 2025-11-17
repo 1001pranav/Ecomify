@@ -3,6 +3,7 @@ import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'path';
+import { StoresProxyModule } from './modules/stores/stores-proxy.module';
 
 @Module({
   imports: [
@@ -22,6 +23,9 @@ import { join } from 'path';
         limit: 100,
       },
     ]),
+
+    // Service Proxies
+    StoresProxyModule,
   ],
   controllers: [],
   providers: [],

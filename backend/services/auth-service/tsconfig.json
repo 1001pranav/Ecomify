@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./",
+    "paths": {
+      "@ecomify/database": ["../../packages/database/src"],
+      "@ecomify/queue": ["../../packages/queue/src"],
+      "@ecomify/shared": ["../../packages/shared/src"],
+      "@ecomify/types": ["../../packages/types/src"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

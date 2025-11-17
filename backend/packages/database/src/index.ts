@@ -5,4 +5,5 @@
 
 export * from './client/prisma';
 export * from './client/redis';
+export * from './client/redis.service';
 export * from './repositories/base.repository';

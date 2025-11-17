@@ -53,34 +53,34 @@ export class Environment {
 
   private loadConfig(): EnvironmentConfig {
     return {
-      nodeEnv: this.get('NODE_ENV', 'development'),
-      port: parseInt(this.get('PORT', '3000'), 10),
-      apiUrl: this.get('API_URL', 'http://localhost:3000'),
+      nodeEnv: this.getEnvVar('NODE_ENV', 'development'),
+      port: parseInt(this.getEnvVar('PORT', '3000'), 10),
+      apiUrl: this.getEnvVar('API_URL', 'http://localhost:3000'),
       database: {
-        url: this.get('DATABASE_URL', ''),
-        replicaUrl: this.get('DATABASE_REPLICA_URL'),
+        url: this.getEnvVar('DATABASE_URL', ''),
+        replicaUrl: this.getEnvVar('DATABASE_REPLICA_URL'),
       },
       redis: {
-        host: this.get('REDIS_HOST', 'localhost'),
-        port: parseInt(this.get('REDIS_PORT', '6379'), 10),
-        password: this.get('REDIS_PASSWORD'),
+        host: this.getEnvVar('REDIS_HOST', 'localhost'),
+        port: parseInt(this.getEnvVar('REDIS_PORT', '6379'), 10),
+        password: this.getEnvVar('REDIS_PASSWORD'),
       },
       rabbitmq: {
-        url: this.get('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672'),
+        url: this.getEnvVar('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672'),
       },
       jwt: {
-        secret: this.get('JWT_SECRET', 'dev-secret'),
-        expiresIn: this.get('JWT_EXPIRES_IN', '15m'),
-        refreshSecret: this.get('REFRESH_TOKEN_SECRET', 'dev-refresh-secret'),
-        refreshExpiresIn: this.get('REFRESH_TOKEN_EXPIRES_IN', '7d'),
+        secret: this.getEnvVar('JWT_SECRET', 'dev-secret'),
+        expiresIn: this.getEnvVar('JWT_EXPIRES_IN', '15m'),
+        refreshSecret: this.getEnvVar('REFRESH_TOKEN_SECRET', 'dev-refresh-secret'),
+        refreshExpiresIn: this.getEnvVar('REFRESH_TOKEN_EXPIRES_IN', '7d'),
       },
       cors: {
-        allowedOrigins: this.get('ALLOWED_ORIGINS', 'http://localhost:3000').split(','),
+        allowedOrigins: this.getEnvVar('ALLOWED_ORIGINS', 'http://localhost:3000').split(','),
       },
     };
   }
 
-  private get(key: string, defaultValue?: string): string {
+  private getEnvVar(key: string, defaultValue?: string): string {
     const value = process.env[key];
     if (!value && !defaultValue) {
       throw new Error(`Environment variable ${key} is required but not set`);

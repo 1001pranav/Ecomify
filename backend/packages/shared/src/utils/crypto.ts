@@ -19,23 +19,19 @@ export class CryptoUtils {
   }
 
   /**
-   * Hash a password using bcrypt-compatible format
+   * Hash a password using bcrypt
    */
-  static async hashPassword(password: string): Promise<string> {
-    // In production, use bcrypt or argon2
-    // This is a placeholder implementation
-    return crypto
-      .createHash('sha256')
-      .update(password + process.env.SALT || 'default-salt')
-      .digest('hex');
+  static async hashPassword(password: string, saltRounds: number = 12): Promise<string> {
+    const bcrypt = await import('bcrypt');
+    return bcrypt.hash(password, saltRounds);
   }
 
   /**
    * Verify a password against a hash
    */
   static async verifyPassword(password: string, hash: string): Promise<boolean> {
-    const computed = await this.hashPassword(password);
-    return computed === hash;
+    const bcrypt = await import('bcrypt');
+    return bcrypt.compare(password, hash);
   }
 
   /**

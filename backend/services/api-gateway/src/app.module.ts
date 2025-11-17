@@ -4,6 +4,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'path';
 import { StoresProxyModule } from './modules/stores/stores-proxy.module';
+import { ProductsProxyModule } from './modules/products/products-proxy.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { StoresProxyModule } from './modules/stores/stores-proxy.module';
 
     // Service Proxies
     StoresProxyModule,
+    ProductsProxyModule,
   ],
   controllers: [],
   providers: [],

@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import './globals.css';
+import { ThemeProvider } from '@ecomify/ui';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Providers } from '../components/providers';
+import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Ecomify Admin',
-  description: 'Manage your online store',
+  title: 'Ecomify Store',
+  description: 'Shop our amazing products',
 };
 
 export default function RootLayout({

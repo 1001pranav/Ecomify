@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Plugin definition
+model Plugin {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  version     String
+  author      String
+
+  // OAuth2 Configuration
+  clientId     String   @unique
+  clientSecret String   // Encrypted
+
+  // Permissions/Scopes
+  permissions String[] // e.g., ['products:read', 'orders:write']
+
+  // Webhook URL for plugin notifications
+  webhookUrl  String?
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  installations PluginInstallation[]
+}
+
+// Plugin installation per store
+model PluginInstallation {
+  id         String   @id @default(cuid())
+  storeId    String
+  pluginId   String
+
+  // Installation-specific configuration
+  config     Json?
+
+  // API Key for this installation
+  apiKey     String   @unique
+  apiSecret  String   // Encrypted
+
+  isActive   Boolean  @default(true)
+
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  plugin     Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, pluginId])
+  @@index([storeId])
+  @@index([apiKey])
+}
+
+// OAuth2 tokens
+model OAuthToken {
+  id           String   @id @default(cuid())
+  pluginId     String
+  storeId      String
+
+  accessToken  String   @unique
+  refreshToken String?  @unique
+  tokenType    String   @default("Bearer")
+  expiresAt    DateTime
+
+  scope        String[] // Granted scopes
+
+  createdAt    DateTime @default(now())
+
+  @@index([pluginId, storeId])
+  @@index([accessToken])
+}
+
+// Webhook subscriptions
+model Webhook {
+  id         String   @id @default(cuid())
+  storeId    String
+  pluginId   String?  // null for store webhooks
+
+  topic      String   // e.g., 'orders/create', 'products/update'
+  address    String   // URL to call
+  format     String   @default("json")
+
+  isActive   Boolean  @default(true)
+  secret     String   // HMAC secret
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+
+  @@index([storeId, topic])
+  @@index([pluginId])
+}
+
+// Webhook delivery log
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  webhookId  String
+
+  payload    Json
+  response   String?  @db.Text
+  statusCode Int?
+
+  attempts   Int      @default(1)
+  success    Boolean
+
+  createdAt  DateTime @default(now())
+
+  webhook    Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
+  @@index([success, createdAt])
+}

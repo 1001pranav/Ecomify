@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Email record for tracking
+model Email {
+  id            String        @id @default(cuid())
+  storeId       String?
+
+  to            String
+  from          String
+  subject       String
+  html          String        @db.Text
+  text          String?       @db.Text
+
+  templateId    String?
+  templateData  Json?
+
+  status        EmailStatus   @default(PENDING)
+  provider      String        @default("sendgrid")
+  providerMsgId String?       // Provider's message ID
+
+  sentAt        DateTime?
+  openedAt      DateTime?
+  clickedAt     DateTime?
+
+  error         String?       @db.Text
+  attempts      Int           @default(0)
+
+  metadata      Json?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([storeId])
+  @@index([status, createdAt])
+  @@index([to])
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+// Email template
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  storeId     String?  // null for platform templates
+
+  name        String
+  slug        String
+  subject     String
+  html        String   @db.Text
+  text        String?  @db.Text
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, slug])
+  @@index([slug])
+}

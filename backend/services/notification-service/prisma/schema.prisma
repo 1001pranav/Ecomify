@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Notification template for different events and channels
+model NotificationTemplate {
+  id        String   @id @default(cuid())
+  storeId   String?  // null for platform-wide templates
+  event     String   // e.g., 'order.created', 'payment.success'
+  channel   String   // 'email', 'sms', 'push'
+  template  String   @db.Text // Handlebars template
+  subject   String?  // For email/push
+  enabled   Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, event, channel])
+  @@index([event, channel])
+}
+
+// Individual notification record
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String?  // Recipient user ID
+  storeId     String?  // Associated store
+
+  channel     String   // 'email', 'sms', 'push'
+  recipient   String   // Email address, phone number, or device token
+  subject     String?
+  content     String   @db.Text
+
+  status      NotificationStatus @default(PENDING)
+  sentAt      DateTime?
+  error       String?  @db.Text
+
+  metadata    Json?    // Additional data
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([storeId])
+  @@index([status, createdAt])
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  RETRY
+}

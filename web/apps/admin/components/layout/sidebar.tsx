@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@ecomify/utils';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/stores/ui-store';
 import {
   LayoutDashboard,
   Package,
@@ -35,27 +35,27 @@ const menuItems: MenuItem[] = [
   },
   {
     label: 'Products',
-    href: '/dashboard/products',
+    href: '/products',
     icon: Package,
   },
   {
     label: 'Orders',
-    href: '/dashboard/orders',
+    href: '/orders',
     icon: ShoppingCart,
   },
   {
     label: 'Customers',
-    href: '/dashboard/customers',
+    href: '/customers',
     icon: Users,
   },
   {
     label: 'Analytics',
-    href: '/dashboard/analytics',
+    href: '/analytics',
     icon: BarChart3,
   },
   {
     label: 'Settings',
-    href: '/dashboard/settings',
+    href: '/settings',
     icon: Settings,
   },
 ];

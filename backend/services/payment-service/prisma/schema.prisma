@@ -1,0 +1,52 @@
+// Payment Service Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Transaction {
+  id                   String            @id @default(cuid())
+  orderId              String
+  storeId              String
+
+  gateway              String            // 'stripe', 'paypal'
+  type                 TransactionType
+  status               TransactionStatus
+
+  amount               Decimal           @db.Decimal(10, 2)
+  currency             String
+
+  gatewayTransactionId String?
+  gatewayResponse      Json?
+
+  errorCode            String?
+  errorMessage         String?
+
+  metadata             Json?
+
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([orderId])
+  @@index([storeId])
+  @@index([gatewayTransactionId])
+}
+
+enum TransactionType {
+  AUTHORIZATION
+  CAPTURE
+  SALE
+  REFUND
+  VOID
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILURE
+}

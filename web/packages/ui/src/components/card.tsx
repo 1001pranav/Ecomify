@@ -1,12 +1,6 @@
 import * as React from 'react';
 import { cn } from '@ecomify/utils';
 
-/**
- * Card Component - Compound Component Pattern
- * Card is composed of multiple sub-components that work together
- * Usage: <Card><CardHeader><CardTitle>Title</CardTitle></CardHeader><CardContent>Content</CardContent></Card>
- */
-
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>

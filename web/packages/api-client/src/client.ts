@@ -1,23 +1,34 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
-import type { ApiResponse, ApiError } from '@ecomify/types';
-import { storage } from '@ecomify/utils';
+import type {
+  Product,
+  ProductFilters,
+  ProductFormValues,
+  Order,
+  OrderFilters,
+  FulfillmentInput,
+  Customer,
+  CustomerFilters,
+  DashboardMetrics,
+  TopProduct,
+  AnalyticsFilters,
+  Category,
+  PaginatedResponse,
+  ApiResponse,
+} from '@ecomify/types';
 
 /**
- * ApiClient - Implements Singleton Pattern
- * Provides a single instance of the API client throughout the application
- * Also implements Facade Pattern - provides a simple interface over Axios
- * And Interceptor Pattern - for request/response manipulation
+ * ApiClient - Singleton Pattern & Facade Pattern
+ *
+ * Provides a single instance of the API client with interceptors
+ * and facades for different resource types
  */
-export class ApiClient {
+class ApiClient {
   private static instance: ApiClient;
   private axios: AxiosInstance;
-  private refreshTokenPromise: Promise<string> | null = null;
 
   private constructor() {
-    // Create axios instance with default config
     this.axios = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
-      timeout: 30000,
+      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -27,9 +38,9 @@ export class ApiClient {
   }
 
   /**
-   * Singleton Pattern: Get the single instance of ApiClient
+   * Singleton getInstance method
    */
-  public static getInstance(): ApiClient {
+  static getInstance(): ApiClient {
     if (!ApiClient.instance) {
       ApiClient.instance = new ApiClient();
     }
@@ -37,14 +48,14 @@ export class ApiClient {
   }
 
   /**
-   * Interceptor Pattern: Setup request and response interceptors
+   * Setup request and response interceptors
    */
-  private setupInterceptors(): void {
-    // Request Interceptor - Add auth token to requests
+  private setupInterceptors() {
+    // Request interceptor - Add auth token
     this.axios.interceptors.request.use(
       (config) => {
         const token = this.getAuthToken();
-        if (token && config.headers) {
+        if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
@@ -54,22 +65,24 @@ export class ApiClient {
       }
     );
 
-    // Response Interceptor - Handle errors and token refresh
+    // Response interceptor - Handle errors and token refresh
     this.axios.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 Unauthorized - Token expired
+        // Handle 401 - Unauthorized (token expired)
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
 
           try {
             const newToken = await this.refreshToken();
-            originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            return this.axios.request(originalRequest);
+            if (newToken) {
+              originalRequest.headers.Authorization = `Bearer ${newToken}`;
+              return this.axios.request(originalRequest);
+            }
           } catch (refreshError) {
-            // Refresh failed, clear auth and redirect to login
+            // Redirect to login or clear auth
             this.clearAuth();
             if (typeof window !== 'undefined') {
               window.location.href = '/login';
@@ -78,8 +91,7 @@ export class ApiClient {
           }
         }
 
-        // Handle other errors
-        return Promise.reject(this.normalizeError(error));
+        return Promise.reject(error);
       }
     );
   }
@@ -88,160 +100,160 @@ export class ApiClient {
    * Get auth token from storage
    */
   private getAuthToken(): string | null {
-    return storage.get<string>('auth-token');
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('auth_token');
   }
 
   /**
-   * Get refresh token from storage
+   * Refresh authentication token
    */
-  private getRefreshToken(): string | null {
-    return storage.get<string>('refresh-token');
-  }
+  private async refreshToken(): Promise<string | null> {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) return null;
 
-  /**
-   * Refresh access token using refresh token
-   * Implements token refresh logic with promise caching to prevent multiple simultaneous refresh requests
-   */
-  private async refreshToken(): Promise<string> {
-    // If there's already a refresh in progress, return that promise
-    if (this.refreshTokenPromise) {
-      return this.refreshTokenPromise;
-    }
+      const response = await this.axios.post('/auth/refresh', { refreshToken });
+      const newToken = response.data.accessToken;
 
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    // Create the refresh promise
-    this.refreshTokenPromise = (async () => {
-      try {
-        const response = await this.axios.post<
-          ApiResponse<{ accessToken: string; refreshToken: string }>
-        >('/auth/refresh', {
-          refreshToken,
-        });
-
-        const { accessToken, refreshToken: newRefreshToken } =
-          response.data.data;
-
-        // Store new tokens
-        storage.set('auth-token', accessToken);
-        storage.set('refresh-token', newRefreshToken);
-
-        return accessToken;
-      } finally {
-        // Clear the promise cache
-        this.refreshTokenPromise = null;
-      }
-    })();
-
-    return this.refreshTokenPromise;
-  }
-
-  /**
-   * Clear authentication tokens
-   */
-  private clearAuth(): void {
-    storage.remove('auth-token');
-    storage.remove('refresh-token');
-    storage.remove('auth-user');
-  }
-
-  /**
-   * Normalize error response
-   */
-  private normalizeError(error: any): ApiError {
-    if (error.response) {
-      // Server responded with error
-      return {
-        message:
-          error.response.data?.message || 'An error occurred',
-        code: error.response.data?.code,
-        statusCode: error.response.status,
-        errors: error.response.data?.errors,
-      };
-    } else if (error.request) {
-      // Request made but no response
-      return {
-        message: 'Network error. Please check your connection.',
-        statusCode: 0,
-      };
-    } else {
-      // Error in request setup
-      return {
-        message: error.message || 'An error occurred',
-        statusCode: 0,
-      };
+      localStorage.setItem('auth_token', newToken);
+      return newToken;
+    } catch (error) {
+      return null;
     }
   }
 
   /**
-   * Facade Pattern: Simplified HTTP methods
+   * Clear authentication
    */
-  public async get<T>(
-    url: string,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
-    return this.axios.get<T>(url, config);
-  }
-
-  public async post<T>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
-    return this.axios.post<T>(url, data, config);
-  }
-
-  public async put<T>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
-    return this.axios.put<T>(url, data, config);
-  }
-
-  public async patch<T>(
-    url: string,
-    data?: any,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
-    return this.axios.patch<T>(url, data, config);
-  }
-
-  public async delete<T>(
-    url: string,
-    config?: AxiosRequestConfig
-  ): Promise<AxiosResponse<T>> {
-    return this.axios.delete<T>(url, config);
+  private clearAuth() {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
   }
 
   /**
-   * Upload file with progress tracking
+   * Products API Facade
    */
-  public async upload<T>(
-    url: string,
-    file: File,
-    onProgress?: (progress: number) => void
-  ): Promise<AxiosResponse<T>> {
-    const formData = new FormData();
-    formData.append('file', file);
+  products = {
+    list: (params?: ProductFilters) =>
+      this.axios.get<PaginatedResponse<Product>>('/products', { params }),
 
-    return this.axios.post<T>(url, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: (progressEvent) => {
-        if (onProgress && progressEvent.total) {
-          const progress = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          onProgress(progress);
-        }
-      },
-    });
-  }
+    get: (id: string) => this.axios.get<ApiResponse<Product>>(`/products/${id}`),
+
+    create: (data: ProductFormValues) =>
+      this.axios.post<ApiResponse<Product>>('/products', data),
+
+    update: (id: string, data: Partial<ProductFormValues>) =>
+      this.axios.patch<ApiResponse<Product>>(`/products/${id}`, data),
+
+    delete: (id: string) => this.axios.delete(`/products/${id}`),
+
+    search: (params: { q: string; limit?: number }) =>
+      this.axios.get<Product[]>('/products/search', { params }),
+  };
+
+  /**
+   * Categories API Facade
+   */
+  categories = {
+    list: () => this.axios.get<Category[]>('/categories'),
+
+    get: (id: string) => this.axios.get<ApiResponse<Category>>(`/categories/${id}`),
+
+    create: (data: Partial<Category>) =>
+      this.axios.post<ApiResponse<Category>>('/categories', data),
+
+    update: (id: string, data: Partial<Category>) =>
+      this.axios.patch<ApiResponse<Category>>(`/categories/${id}`, data),
+
+    delete: (id: string) => this.axios.delete(`/categories/${id}`),
+  };
+
+  /**
+   * Orders API Facade
+   */
+  orders = {
+    list: (params?: OrderFilters) =>
+      this.axios.get<PaginatedResponse<Order>>('/orders', { params }),
+
+    get: (id: string) => this.axios.get<ApiResponse<Order>>(`/orders/${id}`),
+
+    create: (data: any) => this.axios.post<ApiResponse<Order>>('/orders', data),
+
+    update: (id: string, data: Partial<Order>) =>
+      this.axios.patch<ApiResponse<Order>>(`/orders/${id}`, data),
+
+    fulfill: (id: string, data: FulfillmentInput) =>
+      this.axios.post<ApiResponse<Order>>(`/orders/${id}/fulfill`, data),
+
+    cancel: (id: string) =>
+      this.axios.post<ApiResponse<Order>>(`/orders/${id}/cancel`),
+
+    refund: (id: string, amount: number) =>
+      this.axios.post<ApiResponse<Order>>(`/orders/${id}/refund`, { amount }),
+  };
+
+  /**
+   * Customers API Facade
+   */
+  customers = {
+    list: (params?: CustomerFilters) =>
+      this.axios.get<PaginatedResponse<Customer>>('/customers', { params }),
+
+    get: (id: string) => this.axios.get<ApiResponse<Customer>>(`/customers/${id}`),
+
+    update: (id: string, data: Partial<Customer>) =>
+      this.axios.patch<ApiResponse<Customer>>(`/customers/${id}`, data),
+
+    delete: (id: string) => this.axios.delete(`/customers/${id}`),
+  };
+
+  /**
+   * Analytics API Facade
+   */
+  analytics = {
+    getDashboard: (storeId: string) =>
+      this.axios.get<DashboardMetrics>(`/analytics/dashboard`, {
+        params: { storeId },
+      }),
+
+    getTopProducts: (params: AnalyticsFilters & { limit?: number }) =>
+      this.axios.get<TopProduct[]>('/analytics/top-products', { params }),
+
+    getSalesData: (params: AnalyticsFilters) =>
+      this.axios.get('/analytics/sales', { params }),
+  };
+
+  /**
+   * Auth API Facade
+   */
+  auth = {
+    login: (email: string, password: string) =>
+      this.axios.post('/auth/login', { email, password }),
+
+    register: (data: any) => this.axios.post('/auth/register', data),
+
+    logout: () => this.axios.post('/auth/logout'),
+
+    me: () => this.axios.get('/auth/me'),
+  };
+
+  /**
+   * Upload API
+   */
+  upload = {
+    image: (file: File, folder?: string) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (folder) formData.append('folder', folder);
+
+      return this.axios.post<{ url: string }>('/upload/image', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    },
+  };
 }
 
 // Export singleton instance

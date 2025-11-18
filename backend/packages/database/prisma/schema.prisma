@@ -343,9 +343,10 @@ model Customer {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  addresses Address[]
-  orders    Order[]
+  store            Store                       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  addresses        Address[]
+  orders           Order[]
+  segmentMemberships CustomerSegmentMembership[]
 
   @@unique([storeId, email])
   @@index([storeId])
@@ -372,6 +373,82 @@ model Address {
 
   @@index([customerId])
   @@map("addresses")
+}
+
+// ============================================================================
+// Analytics
+// ============================================================================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  storeId   String
+  eventType String
+  eventData Json
+  timestamp DateTime @default(now())
+
+  @@index([storeId, eventType, timestamp])
+  @@map("analytics_events")
+}
+
+model DailySalesMetrics {
+  id       String   @id @default(cuid())
+  storeId  String
+  date     DateTime
+  revenue  Decimal  @db.Decimal(10, 2)
+  orders   Int
+  units    Int
+  avgOrder Decimal  @db.Decimal(10, 2)
+
+  @@unique([storeId, date])
+  @@index([storeId, date])
+  @@map("daily_sales_metrics")
+}
+
+model ProductPerformanceMetrics {
+  id         String   @id @default(cuid())
+  storeId    String
+  productId  String
+  date       DateTime
+  revenue    Decimal  @db.Decimal(10, 2)
+  unitsSold  Int
+  views      Int      @default(0)
+  addToCarts Int      @default(0)
+
+  @@unique([storeId, productId, date])
+  @@index([storeId, productId, date])
+  @@map("product_performance_metrics")
+}
+
+// ============================================================================
+// Customer Segmentation
+// ============================================================================
+
+model CustomerSegment {
+  id         String   @id @default(cuid())
+  storeId    String
+  name       String
+  conditions Json // Segment rules
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  memberships CustomerSegmentMembership[]
+
+  @@index([storeId])
+  @@map("customer_segments")
+}
+
+model CustomerSegmentMembership {
+  customerId String
+  segmentId  String
+  addedAt    DateTime @default(now())
+
+  customer Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  segment  CustomerSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@id([customerId, segmentId])
+  @@index([customerId])
+  @@index([segmentId])
+  @@map("customer_segment_memberships")
 }
 
 // ============================================================================

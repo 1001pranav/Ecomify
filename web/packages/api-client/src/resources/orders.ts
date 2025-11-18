@@ -2,7 +2,7 @@ import { apiClient } from '../client';
 import type {
   Order,
   OrderFilters,
-  FulfillmentData,
+  FulfillmentInput,
   ApiResponse,
   PaginatedResponse,
 } from '@ecomify/types';
@@ -50,7 +50,7 @@ export const ordersApi = {
 
   async fulfill(
     id: string,
-    data: FulfillmentData
+    data: FulfillmentInput
   ): Promise<ApiResponse<Order>> {
     const response = await apiClient.post<ApiResponse<Order>>(
       `/orders/${id}/fulfill`,

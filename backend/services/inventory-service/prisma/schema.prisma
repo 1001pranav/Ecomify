@@ -1,0 +1,110 @@
+// Inventory Service Database Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InventoryLocation {
+  id          String          @id @default(cuid())
+  storeId     String
+  name        String
+  address     Json?
+  isActive    Boolean         @default(true)
+  priority    Int             @default(0) // Higher priority locations are used first
+
+  items       InventoryItem[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([storeId])
+  @@index([isActive])
+}
+
+model InventoryItem {
+  id              String            @id @default(cuid())
+  variantId       String
+  locationId      String
+
+  available       Int               @default(0)  // Available for sale
+  committed       Int               @default(0)  // Reserved for orders
+  incoming        Int               @default(0)  // On the way
+
+  lowStockThreshold Int?            // Custom threshold, null = use default
+
+  location        InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  updatedAt       DateTime          @updatedAt
+
+  @@unique([variantId, locationId])
+  @@index([variantId])
+  @@index([locationId])
+}
+
+model InventoryReservation {
+  id          String   @id @default(cuid())
+  orderId     String
+  variantId   String
+  locationId  String
+  quantity    Int
+  status      ReservationStatus @default(ACTIVE)
+
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([variantId])
+  @@index([status])
+}
+
+enum ReservationStatus {
+  ACTIVE
+  FULFILLED
+  RELEASED
+  EXPIRED
+}
+
+model InventoryAdjustment {
+  id          String   @id @default(cuid())
+  variantId   String
+  locationId  String
+  quantity    Int      // Can be negative for decrements
+  reason      String
+  notes       String?
+
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([variantId])
+  @@index([locationId])
+  @@index([createdAt])
+}
+
+model LowStockAlert {
+  id          String   @id @default(cuid())
+  storeId     String
+  variantId   String
+  locationId  String
+  currentStock Int
+  threshold   Int
+  status      AlertStatus @default(ACTIVE)
+
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  @@index([storeId])
+  @@index([variantId])
+  @@index([status])
+}
+
+enum AlertStatus {
+  ACTIVE
+  RESOLVED
+  DISMISSED
+}

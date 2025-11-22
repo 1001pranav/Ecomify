@@ -37,9 +37,17 @@ export function ThemeProvider({
   storageKey = 'ecomify-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
+  const [mounted, setMounted] = useState(false);
+
+  // Load theme from localStorage after mount (client-side only)
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey) as Theme;
+    if (stored) {
+      setTheme(stored);
+    }
+    setMounted(true);
+  }, [storageKey]);
 
   useEffect(() => {
     const root = window.document.documentElement;

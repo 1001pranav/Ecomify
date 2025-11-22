@@ -11,3 +11,5 @@ export * from './offline';
 export * from './deeplink';
 export * from './biometrics';
 export * from './analytics';
+export * from './image';
+export * from './accessibility';

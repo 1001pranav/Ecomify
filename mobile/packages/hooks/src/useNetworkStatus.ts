@@ -3,8 +3,9 @@
  * Monitor network connectivity
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { syncManager } from '@ecomify/core';
 
 interface NetworkStatus {
   isConnected: boolean;
@@ -39,6 +40,11 @@ export function useNetworkStatus(): NetworkStatus {
   }, []);
 
   const handleNetworkChange = (state: NetInfoState) => {
+    const isOnline = state.isConnected && (state.isInternetReachable ?? true);
+
+    // Update sync manager with online status
+    syncManager.setOnlineStatus(isOnline);
+
     setNetworkStatus({
       isConnected: state.isConnected ?? false,
       isInternetReachable: state.isInternetReachable,
@@ -57,4 +63,47 @@ export function useNetworkStatus(): NetworkStatus {
 export function useIsOnline(): boolean {
   const { isConnected, isInternetReachable } = useNetworkStatus();
   return isConnected && (isInternetReachable ?? true);
+}
+
+/**
+ * Hook to handle offline sync
+ */
+export function useOfflineSync() {
+  const isOnline = useIsOnline();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<{
+    success: boolean;
+    synced: number;
+    failed: number;
+  } | null>(null);
+
+  const sync = useCallback(async () => {
+    if (!isOnline || isSyncing) return;
+
+    setIsSyncing(true);
+    try {
+      const result = await syncManager.syncAll();
+      setLastSyncResult({
+        success: result.success,
+        synced: result.synced,
+        failed: result.failed,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isOnline, isSyncing]);
+
+  // Auto-sync when coming back online
+  useEffect(() => {
+    if (isOnline && !isSyncing) {
+      sync();
+    }
+  }, [isOnline]);
+
+  return {
+    isOnline,
+    isSyncing,
+    lastSyncResult,
+    sync,
+  };
 }

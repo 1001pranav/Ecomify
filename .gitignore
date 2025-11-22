@@ -34,6 +34,9 @@ lerna-debug.log*
 *.swo
 *~
 
+# TypeScript
+*.tsbuildinfo
+
 # Turborepo
 .turbo/
 

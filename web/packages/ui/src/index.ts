@@ -1,3 +1,5 @@
+'use client';
+
 // Export all UI components
 export * from './components/accordion';
 export * from './components/avatar';

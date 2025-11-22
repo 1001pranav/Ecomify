@@ -23,55 +23,36 @@ type OrdersScreenProps = {
   navigation: NativeStackNavigationProp<OrdersStackParamList, 'OrdersList'>;
 };
 
-// Mock orders for demo
-const mockOrders: Order[] = [
-  {
-    id: '1',
-    orderNumber: '1001',
-    email: 'john@example.com',
-    financialStatus: 'paid',
-    fulfillmentStatus: 'unfulfilled',
-    totalPrice: 125.00,
-    createdAt: new Date().toISOString(),
-  } as Order,
-  {
-    id: '2',
-    orderNumber: '1002',
-    email: 'jane@example.com',
-    financialStatus: 'paid',
-    fulfillmentStatus: 'fulfilled',
-    totalPrice: 89.50,
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  } as Order,
-  {
-    id: '3',
-    orderNumber: '1003',
-    email: 'bob@example.com',
-    financialStatus: 'pending',
-    fulfillmentStatus: 'unfulfilled',
-    totalPrice: 245.00,
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  } as Order,
-];
-
 export function OrdersScreen({ navigation }: OrdersScreenProps) {
   const theme = useAppTheme();
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<OrderFilters>({});
   const debouncedSearch = useDebounce(search, 300);
 
-  // For demo, use mock data
-  const isLoading = false;
-  const isRefetching = false;
-  const orders = mockOrders;
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteOrders({
+    search: debouncedSearch,
+    ...filters,
+  });
+
+  const orders = data?.pages.flatMap((page) => page.data) || [];
 
   const handleRefresh = useCallback(() => {
-    // refetch()
-  }, []);
+    refetch();
+  }, [refetch]);
 
   const handleLoadMore = useCallback(() => {
-    // if (hasNextPage && !isFetchingNextPage) fetchNextPage()
-  }, []);
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleOrderPress = (orderId: string) => {
     navigation.navigate('OrderDetail', { orderId });

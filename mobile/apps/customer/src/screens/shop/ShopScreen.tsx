@@ -3,7 +3,7 @@
  * Product browsing home screen
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Card, SearchBar, Skeleton, useAppTheme } from '@ecomify/ui';
+import { useInfiniteProducts } from '@ecomify/hooks';
+import { Card, SearchBar, Skeleton, SkeletonGrid, useAppTheme } from '@ecomify/ui';
 import { formatCurrency } from '@ecomify/core';
 import type { Product } from '@ecomify/types';
 import type { ShopStackParamList } from '../../navigation/MainNavigator';
@@ -24,16 +25,6 @@ import type { RootStackParamList } from '../../navigation/RootNavigator';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
-
-// Mock products
-const mockProducts: Product[] = [
-  { id: '1', title: 'Classic T-Shirt', handle: 'classic-tshirt', images: [{ url: 'https://via.placeholder.com/200' }], variants: [{ price: 29.99, compareAtPrice: 39.99 }] } as Product,
-  { id: '2', title: 'Denim Jeans', handle: 'denim-jeans', images: [{ url: 'https://via.placeholder.com/200' }], variants: [{ price: 65.00 }] } as Product,
-  { id: '3', title: 'Running Sneakers', handle: 'running-sneakers', images: [{ url: 'https://via.placeholder.com/200' }], variants: [{ price: 89.99 }] } as Product,
-  { id: '4', title: 'Leather Jacket', handle: 'leather-jacket', images: [{ url: 'https://via.placeholder.com/200' }], variants: [{ price: 199.99, compareAtPrice: 249.99 }] } as Product,
-  { id: '5', title: 'Summer Dress', handle: 'summer-dress', images: [{ url: 'https://via.placeholder.com/200' }], variants: [{ price: 55.00 }] } as Product,
-  { id: '6', title: 'Canvas Backpack', handle: 'canvas-backpack', images: [{ url: 'https://via.placeholder.com/200' }], variants: [{ price: 45.00 }] } as Product,
-];
 
 const categories = ['All', 'Clothing', 'Shoes', 'Accessories', 'Sale'];
 
@@ -45,13 +36,30 @@ export function ShopScreen() {
   const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
-  };
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteProducts({
+    category: selectedCategory === 'All' ? undefined : selectedCategory.toLowerCase(),
+  });
+
+  const products = data?.pages.flatMap((page) => page.data) || [];
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleProductPress = (productId: string) => {
     rootNav.navigate('ProductDetail', { productId });
@@ -139,10 +147,21 @@ export function ShopScreen() {
     </View>
   );
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        {renderHeader()}
+        <View style={styles.list}>
+          <SkeletonGrid count={6} columns={2} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
-        data={mockProducts}
+        data={products}
         renderItem={renderProduct}
         keyExtractor={(item) => item.id}
         numColumns={2}
@@ -150,8 +169,10 @@ export function ShopScreen() {
         contentContainerStyle={styles.list}
         ListHeaderComponent={renderHeader}
         refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
         }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
       />
     </View>
   );

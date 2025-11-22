@@ -3,7 +3,7 @@
  * Product list with search
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,12 @@ import {
   FlatList,
   TouchableOpacity,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useInfiniteProducts } from '@ecomify/hooks';
 import { SearchBar, Card, Badge, Button, Skeleton, EmptyState, useAppTheme } from '@ecomify/ui';
-import { formatCurrency } from '@ecomify/core';
+import { formatCurrency, useDebounce } from '@ecomify/core';
 import type { Product } from '@ecomify/types';
 import type { ProductsStackParamList } from '../../navigation/MainNavigator';
 
@@ -22,40 +24,34 @@ type ProductsScreenProps = {
   navigation: NativeStackNavigationProp<ProductsStackParamList, 'ProductsList'>;
 };
 
-// Mock products
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    title: 'Classic T-Shirt',
-    handle: 'classic-t-shirt',
-    status: 'active',
-    images: [{ url: 'https://via.placeholder.com/150' }],
-    variants: [{ price: 29.99, inventory: 50 }],
-  } as Product,
-  {
-    id: '2',
-    title: 'Denim Jeans',
-    handle: 'denim-jeans',
-    status: 'active',
-    images: [{ url: 'https://via.placeholder.com/150' }],
-    variants: [{ price: 65.00, inventory: 25 }],
-  } as Product,
-  {
-    id: '3',
-    title: 'Sneakers',
-    handle: 'sneakers',
-    status: 'draft',
-    images: [{ url: 'https://via.placeholder.com/150' }],
-    variants: [{ price: 89.99, inventory: 0 }],
-  } as Product,
-];
-
 export function ProductsScreen({ navigation }: ProductsScreenProps) {
   const theme = useAppTheme();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
 
-  const products = mockProducts;
-  const isLoading = false;
+  const {
+    data,
+    isLoading,
+    isRefetching,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteProducts({
+    search: debouncedSearch,
+  });
+
+  const products = data?.pages.flatMap((page) => page.data) || [];
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleProductPress = (productId: string) => {
     navigation.navigate('ProductDetail', { productId });
@@ -143,6 +139,11 @@ export function ProductsScreen({ navigation }: ProductsScreenProps) {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         ListHeaderComponent={renderHeader}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
         ListEmptyComponent={
           <EmptyState
             title="No products"

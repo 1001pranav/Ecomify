@@ -24,32 +24,36 @@ export function DashboardScreen() {
 
   const {
     data: metrics,
-    isLoading,
-    refetch,
-    isRefetching,
+    isLoading: metricsLoading,
+    refetch: refetchMetrics,
+    isRefetching: isRefetchingMetrics,
   } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => apiClient.analytics.getDashboard(),
     staleTime: CACHE_CONFIG.ANALYTICS_STALE_TIME,
-    // Mock data for now
-    placeholderData: {
-      todaySales: 1250.00,
-      yesterdaySales: 980.50,
-      weekSales: 8420.00,
-      monthSales: 32500.00,
-      orders: 24,
-      visitors: 1520,
-      conversionRate: 3.2,
-      averageOrderValue: 85.50,
-    } as DashboardMetrics,
   });
 
-  // Mock recent orders
-  const mockOrders: Partial<Order>[] = [
-    { id: '1', orderNumber: '1001', email: 'john@example.com', totalPrice: 125.00, createdAt: new Date().toISOString() },
-    { id: '2', orderNumber: '1002', email: 'jane@example.com', totalPrice: 89.50, createdAt: new Date(Date.now() - 3600000).toISOString() },
-    { id: '3', orderNumber: '1003', email: 'bob@example.com', totalPrice: 245.00, createdAt: new Date(Date.now() - 7200000).toISOString() },
-  ];
+  const {
+    data: recentOrders,
+    isLoading: ordersLoading,
+    refetch: refetchOrders,
+    isRefetching: isRefetchingOrders,
+  } = useQuery({
+    queryKey: ['recentOrders'],
+    queryFn: async () => {
+      const response = await apiClient.orders.list({ limit: 5 });
+      return response.data || [];
+    },
+    staleTime: CACHE_CONFIG.ORDERS_STALE_TIME,
+  });
+
+  const isLoading = metricsLoading || ordersLoading;
+  const isRefetching = isRefetchingMetrics || isRefetchingOrders;
+
+  const refetch = () => {
+    refetchMetrics();
+    refetchOrders();
+  };
 
   if (isLoading) {
     return (
@@ -121,7 +125,7 @@ export function DashboardScreen() {
             </TouchableOpacity>
           </Card.Header>
           <Card.Content>
-            {mockOrders.map((order) => (
+            {(recentOrders || []).map((order) => (
               <TouchableOpacity
                 key={order.id}
                 style={[styles.orderItem, { borderBottomColor: theme.colors.outlineVariant }]}

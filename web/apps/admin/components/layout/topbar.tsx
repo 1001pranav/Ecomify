@@ -11,8 +11,8 @@ import {
   DropdownMenuTrigger,
 } from '@ecomify/ui';
 import { Avatar, AvatarFallback, AvatarImage } from '@ecomify/ui';
-import { useUIStore } from '@/stores/uiStore';
-import { useAuth } from '@/stores/authStore';
+import { useUIStore } from '@/stores/ui-store';
+import { useAuth } from '@/stores/auth-store';
 import { Breadcrumbs } from './breadcrumbs';
 
 /**

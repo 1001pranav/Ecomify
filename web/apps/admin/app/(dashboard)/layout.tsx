@@ -2,7 +2,7 @@
 
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
-import { useUIStore } from '@/stores/uiStore';
+import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@ecomify/utils';
 
 /**

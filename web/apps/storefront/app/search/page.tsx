@@ -2,8 +2,10 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Search, X } from 'lucide-react';
 import { Input, Button, Skeleton } from '@ecomify/ui';
+import { apiClient } from '@ecomify/api-client';
 import { StorefrontLayout } from '../../components/layout';
 import {
   ProductGrid,
@@ -19,14 +21,7 @@ import type { ProductFilters as ProductFiltersType } from '@ecomify/types';
  * Displays search results with filters
  */
 
-// Mock data
-const mockCategories = [
-  { id: '1', name: 'Electronics', slug: 'electronics', productsCount: 45, createdAt: '', updatedAt: '' },
-  { id: '2', name: 'Clothing', slug: 'clothing', productsCount: 120, createdAt: '', updatedAt: '' },
-  { id: '3', name: 'Home & Garden', slug: 'home-garden', productsCount: 67, createdAt: '', updatedAt: '' },
-];
-
-const mockTags = ['New', 'Sale', 'Featured', 'Best Seller'];
+const defaultTags = ['New', 'Sale', 'Featured', 'Best Seller'];
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -35,6 +30,16 @@ function SearchContent() {
 
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [searchInput, setSearchInput] = useState(query);
+
+  // Fetch categories from API
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const response = await apiClient.categories.list();
+      return response.data || [];
+    },
+  });
+  const categories = categoriesData || [];
 
   // Parse filters from URL
   const filters: ProductFiltersType = {
@@ -119,8 +124,8 @@ function SearchContent() {
             <ProductFilters
               filters={filters}
               onChange={updateFilters}
-              categories={mockCategories}
-              tags={mockTags}
+              categories={categories}
+              tags={defaultTags}
               maxPrice={1000}
             />
 

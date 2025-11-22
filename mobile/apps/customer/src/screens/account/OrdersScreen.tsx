@@ -3,27 +3,32 @@
  * Customer order history
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
-import { Card, StatusBadge, EmptyState, useAppTheme } from '@ecomify/ui';
+import { useOrders } from '@ecomify/hooks';
+import { Card, StatusBadge, EmptyState, Skeleton, useAppTheme } from '@ecomify/ui';
 import { formatCurrency, formatDate } from '@ecomify/core';
 import type { Order } from '@ecomify/types';
 import type { AccountStackParamList } from '../../navigation/MainNavigator';
 
 type OrdersNavProp = NativeStackNavigationProp<AccountStackParamList, 'Orders'>;
 
-// Mock orders
-const mockOrders: Order[] = [
-  { id: '1', orderNumber: '12345', fulfillmentStatus: 'shipped', totalPrice: 129.99, createdAt: new Date().toISOString(), lineItems: [{ title: 'Classic T-Shirt' }, { title: 'Denim Jeans' }] } as Order,
-  { id: '2', orderNumber: '12344', fulfillmentStatus: 'delivered', totalPrice: 89.50, createdAt: new Date(Date.now() - 7 * 86400000).toISOString(), lineItems: [{ title: 'Running Sneakers' }] } as Order,
-  { id: '3', orderNumber: '12343', fulfillmentStatus: 'delivered', totalPrice: 245.00, createdAt: new Date(Date.now() - 30 * 86400000).toISOString(), lineItems: [{ title: 'Leather Jacket' }] } as Order,
-];
-
 export function OrdersScreen() {
   const theme = useAppTheme();
   const navigation = useNavigation<OrdersNavProp>();
+
+  const {
+    data: orders = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useOrders();
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const renderOrder = ({ item }: { item: Order }) => (
     <TouchableOpacity onPress={() => navigation.navigate('OrderDetail', { orderId: item.id })}>
@@ -44,7 +49,19 @@ export function OrdersScreen() {
     </TouchableOpacity>
   );
 
-  if (mockOrders.length === 0) {
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.list}>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} height={120} borderRadius={12} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (orders.length === 0) {
     return (
       <View style={[styles.container, styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
         <EmptyState title="No orders yet" description="Your order history will appear here" />
@@ -55,10 +72,13 @@ export function OrdersScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
-        data={mockOrders}
+        data={orders}
         renderItem={renderOrder}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+        }
       />
     </View>
   );

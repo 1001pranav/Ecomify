@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Package, Search, Filter, Eye, ChevronRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Package, Search, Eye } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -17,7 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
+  Skeleton,
 } from '@ecomify/ui';
+import { apiClient } from '@ecomify/api-client';
 import { formatCurrency } from '@ecomify/utils';
 
 /**
@@ -25,69 +28,46 @@ import { formatCurrency } from '@ecomify/utils';
  * List of all customer orders with filtering
  */
 
-// Mock orders data
-const mockOrders = [
-  {
-    id: 'ORD-2024-001',
-    date: '2024-11-20T10:30:00',
-    status: 'delivered',
-    financialStatus: 'paid',
-    total: 129.99,
-    items: [
-      { title: 'Classic T-Shirt', quantity: 2, price: 29.99 },
-      { title: 'Denim Jeans', quantity: 1, price: 69.99 },
-    ],
-  },
-  {
-    id: 'ORD-2024-002',
-    date: '2024-11-15T14:20:00',
-    status: 'shipped',
-    financialStatus: 'paid',
-    total: 79.50,
-    items: [
-      { title: 'Running Shoes', quantity: 1, price: 79.50 },
-    ],
-  },
-  {
-    id: 'ORD-2024-003',
-    date: '2024-11-10T09:15:00',
-    status: 'processing',
-    financialStatus: 'paid',
-    total: 249.00,
-    items: [
-      { title: 'Winter Jacket', quantity: 1, price: 199.00 },
-      { title: 'Wool Scarf', quantity: 2, price: 25.00 },
-    ],
-  },
-  {
-    id: 'ORD-2024-004',
-    date: '2024-10-28T16:45:00',
-    status: 'cancelled',
-    financialStatus: 'refunded',
-    total: 59.99,
-    items: [
-      { title: 'Casual Sneakers', quantity: 1, price: 59.99 },
-    ],
-  },
-];
-
 const statusConfig = {
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
   processing: { label: 'Processing', color: 'bg-blue-100 text-blue-800' },
   shipped: { label: 'Shipped', color: 'bg-purple-100 text-purple-800' },
   delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800' },
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800' },
+  unfulfilled: { label: 'Unfulfilled', color: 'bg-gray-100 text-gray-800' },
+  fulfilled: { label: 'Fulfilled', color: 'bg-green-100 text-green-800' },
 };
 
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  const filteredOrders = mockOrders.filter((order) => {
-    const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  // Fetch orders from API
+  const {
+    data: ordersData,
+    isLoading,
+  } = useQuery({
+    queryKey: ['orders', statusFilter],
+    queryFn: async () => {
+      const params: any = {};
+      if (statusFilter !== 'all') {
+        params.fulfillmentStatus = statusFilter;
+      }
+      const response = await apiClient.orders.list(params);
+      return response.data?.data || [];
+    },
   });
+
+  const orders = ordersData || [];
+
+  // Filter orders by search query
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order: any) => {
+      const orderId = order.orderNumber || order.id || '';
+      const matchesSearch = orderId.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesSearch;
+    });
+  }, [orders, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -125,7 +105,20 @@ export default function OrdersPage() {
       </div>
 
       {/* Orders List */}
-      {filteredOrders.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="py-6">
+                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="h-4 w-48 mb-4" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-3/4" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : filteredOrders.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
             <Package className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -144,7 +137,7 @@ export default function OrdersPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {filteredOrders.map((order) => (
+          {filteredOrders.map((order: any) => (
             <OrderCard key={order.id} order={order} />
           ))}
         </div>
@@ -155,24 +148,28 @@ export default function OrdersPage() {
 
 interface Order {
   id: string;
-  date: string;
-  status: string;
+  orderNumber?: string;
+  createdAt: string;
+  fulfillmentStatus: string;
   financialStatus: string;
-  total: number;
-  items: Array<{ title: string; quantity: number; price: number }>;
+  totalPrice: number;
+  lineItems: Array<{ title: string; quantity: number; price: number }>;
 }
 
 function OrderCard({ order }: { order: Order }) {
-  const config = statusConfig[order.status as keyof typeof statusConfig];
+  const status = order.fulfillmentStatus || 'pending';
+  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle className="text-base">{order.id}</CardTitle>
+            <CardTitle className="text-base">
+              {order.orderNumber ? `#${order.orderNumber}` : order.id}
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {new Date(order.date).toLocaleDateString('en-US', {
+              {new Date(order.createdAt).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -181,13 +178,13 @@ function OrderCard({ order }: { order: Order }) {
           </div>
           <div className="flex items-center gap-2">
             <Badge className={config.color}>{config.label}</Badge>
-            <span className="font-semibold">{formatCurrency(order.total)}</span>
+            <span className="font-semibold">{formatCurrency(order.totalPrice)}</span>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {order.items.map((item, index) => (
+          {order.lineItems?.map((item, index) => (
             <div key={index} className="flex justify-between text-sm">
               <span className="text-muted-foreground">
                 {item.title} × {item.quantity}
@@ -204,7 +201,7 @@ function OrderCard({ order }: { order: Order }) {
               View Details
             </Link>
           </Button>
-          {order.status === 'delivered' && (
+          {status === 'delivered' && (
             <Button variant="ghost" size="sm">
               Buy Again
             </Button>

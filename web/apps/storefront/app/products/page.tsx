@@ -2,7 +2,9 @@
 
 import { useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Button, Skeleton } from '@ecomify/ui';
+import { apiClient } from '@ecomify/api-client';
 import { StorefrontLayout } from '../../components/layout';
 import {
   ProductGrid,
@@ -19,17 +21,7 @@ import type { ProductFilters as ProductFiltersType } from '@ecomify/types';
  * Main product listing page with filters and sorting
  */
 
-// Mock categories for demo
-const mockCategories = [
-  { id: '1', name: 'Electronics', slug: 'electronics', productsCount: 45, createdAt: '', updatedAt: '' },
-  { id: '2', name: 'Clothing', slug: 'clothing', productsCount: 120, createdAt: '', updatedAt: '' },
-  { id: '3', name: 'Home & Garden', slug: 'home-garden', productsCount: 67, createdAt: '', updatedAt: '' },
-  { id: '4', name: 'Sports', slug: 'sports', productsCount: 38, createdAt: '', updatedAt: '' },
-  { id: '5', name: 'Books', slug: 'books', productsCount: 89, createdAt: '', updatedAt: '' },
-];
-
-// Mock tags for demo
-const mockTags = ['New', 'Sale', 'Featured', 'Best Seller', 'Limited Edition'];
+const defaultTags = ['New', 'Sale', 'Featured', 'Best Seller', 'Limited Edition'];
 
 function ProductsContent() {
   const searchParams = useSearchParams();
@@ -38,6 +30,16 @@ function ProductsContent() {
 
   // State
   const [view, setView] = useState<'grid' | 'list'>('grid');
+
+  // Fetch categories from API
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const response = await apiClient.categories.list();
+      return response.data || [];
+    },
+  });
+  const categories = categoriesData || [];
 
   // Parse filters from URL
   const filters: ProductFiltersType = {
@@ -100,8 +102,8 @@ function ProductsContent() {
           <ProductFilters
             filters={filters}
             onChange={updateFilters}
-            categories={mockCategories}
-            tags={mockTags}
+            categories={categories}
+            tags={defaultTags}
             maxPrice={1000}
           />
 
@@ -111,7 +113,7 @@ function ProductsContent() {
             <ActiveFilters
               filters={filters}
               onChange={updateFilters}
-              categories={mockCategories}
+              categories={categories}
             />
 
             {/* Products Header */}

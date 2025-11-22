@@ -3,24 +3,54 @@
  * Manage saved addresses
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
-import { Card, Badge, Button, EmptyState, useAppTheme } from '@ecomify/ui';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@ecomify/api';
+import { Card, Badge, Button, EmptyState, Skeleton, useAppTheme } from '@ecomify/ui';
 import type { Address } from '@ecomify/types';
-
-const mockAddresses: Address[] = [
-  { id: '1', firstName: 'John', lastName: 'Doe', address1: '123 Main St', city: 'New York', province: 'NY', provinceCode: 'NY', country: 'United States', countryCode: 'US', zip: '10001', phone: '+1 555-123-4567', isDefault: true },
-  { id: '2', firstName: 'John', lastName: 'Doe', address1: '456 Work Ave', address2: 'Suite 100', city: 'New York', province: 'NY', provinceCode: 'NY', country: 'United States', countryCode: 'US', zip: '10002', isDefault: false },
-];
 
 export function AddressesScreen() {
   const theme = useAppTheme();
+  const queryClient = useQueryClient();
+
+  const {
+    data: addresses = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: () => apiClient.addresses.list(),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.addresses.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+    },
+  });
+
+  const setDefaultMutation = useMutation({
+    mutationFn: (id: string) => apiClient.addresses.setDefault(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+    },
+  });
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const handleDelete = (id: string) => {
     Alert.alert('Delete Address', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
     ]);
+  };
+
+  const handleSetDefault = (id: string) => {
+    setDefaultMutation.mutate(id);
   };
 
   const renderAddress = ({ item }: { item: Address }) => (
@@ -37,7 +67,7 @@ export function AddressesScreen() {
         <TouchableOpacity><Text style={{ color: theme.colors.primary }}>Edit</Text></TouchableOpacity>
         {!item.isDefault && (
           <>
-            <TouchableOpacity><Text style={{ color: theme.colors.primary }}>Set Default</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => handleSetDefault(item.id)}><Text style={{ color: theme.colors.primary }}>Set Default</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => handleDelete(item.id)}><Text style={{ color: theme.colors.error }}>Delete</Text></TouchableOpacity>
           </>
         )}
@@ -45,7 +75,19 @@ export function AddressesScreen() {
     </Card>
   );
 
-  if (mockAddresses.length === 0) {
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={styles.list}>
+          {[1, 2].map((i) => (
+            <Skeleton key={i} height={140} borderRadius={12} style={{ marginBottom: 12 }} />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (addresses.length === 0) {
     return (
       <View style={[styles.container, styles.emptyContainer, { backgroundColor: theme.colors.background }]}>
         <EmptyState title="No addresses" description="Add a shipping address" actionLabel="Add Address" onAction={() => {}} />
@@ -56,10 +98,13 @@ export function AddressesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <FlatList
-        data={mockAddresses}
+        data={addresses}
         renderItem={renderAddress}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} />
+        }
         ListFooterComponent={<Button onPress={() => {}} fullWidth>Add New Address</Button>}
       />
     </View>
